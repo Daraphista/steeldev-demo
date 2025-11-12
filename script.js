@@ -1,15 +1,20 @@
-// script.js
+// server.js (renamed from script.js)
+import express from "express";
 import fs from "fs";
 import Steel from "steel-sdk";
 import { chromium } from "playwright";
 
-const STEEL_API_KEY = process.env.STEEL_API_KEY;
+const app = express();
+const PORT = process.env.PORT || 8080;
 
+// Verify essential environment variables
+const STEEL_API_KEY = process.env.STEEL_API_KEY;
 if (!STEEL_API_KEY) {
   throw new Error("Missing STEEL_API_KEY environment variable. Please set it in Cloud Run.");
 }
 
-async function main() {
+// Core logic moved into a function
+async function runAutomation() {
   // ---- STEP 1: Read cookies from secret environment variable ----
   const cookiesJsonString = process.env.FOLLOWUPBOSS_LOGIN_COOKIE;
 
@@ -23,10 +28,7 @@ async function main() {
     ? raw
     : raw.cookies || raw.data || Object.values(raw)[0];
 
-  console.log(
-    `Loaded ${followupbossCookies?.length || 0} cookies from FOLLOWUPBOSS_LOGIN_COOKIE`
-  );
-
+  console.log(`Loaded ${followupbossCookies?.length || 0} cookies from secret.`);
 
   // ---- STEP 2: Create Steel session ----
   const client = new Steel({ steelAPIKey: STEEL_API_KEY });
@@ -53,7 +55,7 @@ async function main() {
 
   // ---- STEP 5: Navigate to contact page ----
   const page = await context.newPage();
-  const contactUrl = "https://romanlopez.followupboss.com/2/people/view/56762"; // change this
+  const contactUrl = "https://romanlopez.followupboss.com/2/people/view/56762"; // change as needed
   await page.goto(contactUrl);
   console.log("Navigated to:", contactUrl);
 
@@ -64,9 +66,25 @@ async function main() {
   await browser.close();
   await client.sessions.release(session.id);
   console.log("✅ Done");
+
+  return { message: "Automation completed successfully!" };
 }
 
-main().catch((err) => {
-  console.error("Error:", err);
-  process.exit(1);
+// Simple health check (Cloud Run pings this)
+app.get("/", (req, res) => {
+  res.send("Service is running ✅");
 });
+
+// Run automation manually via GET /run
+app.get("/run", async (req, res) => {
+  try {
+    const result = await runAutomation();
+    res.status(200).send(result);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).send({ error: err.message });
+  }
+});
+
+// Start server — required by Cloud Run
+app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}`));
