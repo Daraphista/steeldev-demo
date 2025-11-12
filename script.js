@@ -10,18 +10,22 @@ if (!STEEL_API_KEY) {
 }
 
 async function main() {
-  // ---- STEP 1: Read cookies from JSON file ----
-  const cookieFilePath = "./followupboss.json";
-  if (!fs.existsSync(cookieFilePath)) {
-    throw new Error(`Cookie file not found: ${cookieFilePath}`);
+  // ---- STEP 1: Read cookies from secret environment variable ----
+  const cookiesJsonString = process.env.FOLLOWUPBOSS_LOGIN_COOKIE;
+
+  if (!cookiesJsonString) {
+    throw new Error("FOLLOWUPBOSS_LOGIN_COOKIE environment variable is missing");
   }
 
-  // Read the cookie JSON file and handle different formats
-const raw = JSON.parse(fs.readFileSync(cookieFilePath, "utf8"));
-const followupbossCookies = Array.isArray(raw)
-  ? raw
-  : raw.cookies || raw.data || Object.values(raw)[0]; // handle wrapped formats like { "cookies": [...] }
-console.log(`Loaded ${followupbossCookies?.length || 0} cookies from ${cookieFilePath}`);
+  // Parse and normalize formats
+  const raw = JSON.parse(cookiesJsonString);
+  const followupbossCookies = Array.isArray(raw)
+    ? raw
+    : raw.cookies || raw.data || Object.values(raw)[0];
+
+  console.log(
+    `Loaded ${followupbossCookies?.length || 0} cookies from FOLLOWUPBOSS_LOGIN_COOKIE`
+  );
 
 
   // ---- STEP 2: Create Steel session ----
